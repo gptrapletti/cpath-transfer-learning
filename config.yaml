@@ -1,0 +1,5 @@
+data_dir: 'data'
+images_path: data/images.npy
+labels_path: data/labels.npy
+
+pretrained_model_path: models/tenpercent_resnet18.ckpt

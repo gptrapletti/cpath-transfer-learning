@@ -1,0 +1,60 @@
+import torch
+import torch.nn as nn
+import torchvision.models as models
+
+class DecoderBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, use_skip_connection=True):
+        super(DecoderBlock, self).__init__()
+        self.use_skip_connection = use_skip_connection
+        self.decoder = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(out_channels),
+            nn.ConvTranspose2d(out_channels, out_channels, kernel_size=2, stride=2, padding=0)
+        )
+
+    def forward(self, x, skip_tensor=None):
+        if self.use_skip_connection and skip_tensor is not None:
+            x = torch.cat([x, skip_tensor], 1)
+        x = self.decoder(x)
+        return x
+
+class SegmentationModel(nn.Module):
+    def __init__(self, num_classes=2):
+        super(SegmentationModel, self).__init__()
+        self.resnet = models.resnet18(pretrained=True)
+        self.encoder = nn.Sequential(*list(self.resnet.children())[:-3])
+
+        self.middle = nn.Sequential(
+            nn.Conv2d(256, 512, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(512),
+            nn.Conv2d(512, 512, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(512)
+        )
+
+        self.decoder4 = DecoderBlock(768, 256)
+        self.decoder3 = DecoderBlock(384, 128)
+        self.decoder2 = DecoderBlock(192, 64)
+        self.decoder1 = DecoderBlock(128, 64, use_skip_connection=False)
+
+        self.classifier = nn.Conv2d(64, num_classes, kernel_size=1)
+
+    def forward(self, x):
+        x1 = self.encoder[0](x)
+        x2 = self.encoder[1](x1)
+        x3 = self.encoder[2](x2)
+        x4 = self.encoder[3](x3)
+        x5 = self.encoder[4](x4)
+        x_middle = self.middle(x5)
+
+        x_decoder4 = self.decoder4(x_middle, x4)
+        x_decoder3 = self.decoder3(x_decoder4, x3)
+        x_decoder2 = self.decoder2(x_decoder3, x2)
+        x_decoder1 = self.decoder1(x_decoder2)
+
+        mask = self.classifier(x_decoder1)
+        return mask
+
+model = SegmentationModel()

@@ -1,0 +1,7 @@
+# Folders
+data/
+.ipynb_checkpoints/
+__pycache__/
+
+# Files
+*.ckpt
