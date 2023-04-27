@@ -24,9 +24,17 @@ TODO MODEL:
 PRUNING: n layers to remove from the end --> feature maps shape
 - 1 --> 512, 1, 1
 - 2 --> 512, 8, 8
-- 3 --> 256, 16, 16
+- 3 --> 256, 16, 16 ***
 - 4 --> 128, 32, 32
 - 5 --> 64, 64, 64
 
 
-TODOOOO: definisci classe decoder.
+CPATH-TRANSFER-LEARNING:
+- Provare con pesi encoder pretrained vs pesi encoder inizializzati da zero.
+- Opzioni: encoder freezato + decoder allenato, encoder fine-tuned + decoder allenato, encoder resettato e riallenato + decoder allenato.
+- Prima fare decoder semplice (qualche layer e senza skip per provare funzionamento), poi fare decoder complesso.
+
+
+Come gestire features maps di diversa shape derivanti da pruning diversi: input di qualsiasi dimensione, poi decoder raddoppia ad ogni passaggio ma mettendo un check in modo che quando raggiunge 256 si fermi.
+
+TODO: definisci classe decoder.
