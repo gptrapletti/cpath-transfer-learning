@@ -2,35 +2,63 @@ import pytorch_lightning as pl
 import torch.nn as nn
 from src.utils import load_pretrained_model
 
-class UpStep(nn.Module):
-    def __init__(self, input_shape):
-        self.input_shape = input_shape
-        self.stack = nn.Sequential([
-            # Halves the number of channels of the feature maps while
-            # keeping weight and width the same
-            nn.ConvTranspose2d(
-                in_channels=self.input_shape, 
-                out_channels=self.input_shape/2, 
-                kernel_size=2, 
-                stride=2, 
-                padding=0
-            ),
-            #
-            nn.Conv2d(
-                in_channels=output1.shape[0],
-                out_channels=int(output1.shape[0]/2),
-                kernel_size=3,
-                stride=1,
-                padding=1
-            )
+# class UpStep(nn.Module):
+#     def __init__(self, input_shape):
+#         self.input_shape = input_shape
+#         self.stack = nn.Sequential([
+#             # Halves the number of channels of the feature maps while
+#             # keeping weight and width the same
+#             nn.ConvTranspose2d(
+#                 in_channels=self.input_shape, 
+#                 out_channels=self.input_shape/2, 
+#                 kernel_size=2, 
+#                 stride=2, 
+#                 padding=0
+#             ),
+#             #
+#             nn.Conv2d(
+#                 in_channels=output1.shape[0],
+#                 out_channels=int(output1.shape[0]/2),
+#                 kernel_size=3,
+#                 stride=1,
+#                 padding=1
+#             )
             
-            # COME PASSARE A QUESTO ULTIMO LAYER IL NUOVO INPUT SHAPE, RISULTANTE DAL PASSAGGIO PRECEDENTE? FARLO NELLA FORWARD? 
-            # COME INSERIRE IL CONTROLLO DI FERMARSI QUANDO SI E' ARRIVATI A 256? NELLA CLASSE DECODER DIREI.
+#             # COME PASSARE A QUESTO ULTIMO LAYER IL NUOVO INPUT SHAPE, RISULTANTE DAL PASSAGGIO PRECEDENTE? FARLO NELLA FORWARD? 
+#             # COME INSERIRE IL CONTROLLO DI FERMARSI QUANDO SI E' ARRIVATI A 256? NELLA CLASSE DECODER DIREI.
             
-        ])
+#         ])
+        
+#     def forward(self, x):
+#         return self.upconv(x)
+
+class UpBlock(nn.Module):
+    '''
+    Does upsampling to double size and convolutions to halve the number of channels.
+    '''
+    def __init__(self, in_channels):
+        super().__init__()
+        self.out_channels = in_channels//2
+        self.block = nn.Sequential(
+            # Up-conv 2x2: doubles the size and halves the channels.
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(in_channels=in_channels, out_channels=self.out_channels, kernel_size=2, padding='same'),
+            nn.ReLU(),
+            nn.BatchNorm2d(num_features=self.out_channels),
+            # Conv 3x3 n.1: keeps both size and channels.
+            # (in the UNet paper this conv too halves the channels because the skip connections doubles them again.
+            # However here I do not use skip connections so this conv keeps the same number of channels
+            nn.Conv2d(in_channels=self.out_channels, out_channels=self.out_channels, kernel_size=3, padding='same'),
+            nn.ReLU(),
+            nn.BatchNorm2d(num_features=self.out_channels),
+            # Conv 3x3 n.2: same as before
+            nn.Conv2d(in_channels=self.out_channels, out_channels=self.out_channels, kernel_size=3, padding='same'),
+            nn.ReLU(),
+            nn.BatchNorm2d(num_features=self.out_channels),
+        )
         
     def forward(self, x):
-        return self.upconv(x)
+        return self.block(x)
 
 
 class Encoder(nn.Module):
@@ -56,15 +84,23 @@ class Encoder(nn.Module):
         return output
     
     
-class BasicDecoder(nn.Module):
-    def __init__(self, input_shape):
-        super().__init__()
-        self.input_shape = input_shape
-        self.backbone = ...
-        
-    pass
 
+class BasicDecoder(nn.Module):
+    def __init__(self):
+        super().__init__()
+        n_channels = [256, 128, 64, 32, 16]
+        self.backbone = nn.Sequential(
+            nn.ModuleList([UpBlock(c) for c in n_channels]),
+            nn.Conv2d(in_channels=n_channels[-1], out_channels=1, kernel_size=1, stride=1),
+            nn.Sigmoid()
+        )
         
+    def forward(self, x):     
+        x = self.backbone(x)
+        return x
+    
+        
+       
 
 class Decoder(nn.Module):
     def __init__(self):
@@ -87,6 +123,11 @@ class SegResNet(pl.LightningModule):
         
         y = self.decoder()
         
+
+
+
+
+
         
 # class Decoder(nn.Module):
 #     def __init__(self, input_shape, hidden_dim):
