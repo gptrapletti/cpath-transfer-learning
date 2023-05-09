@@ -88,17 +88,18 @@ class Encoder(nn.Module):
 class BasicDecoder(nn.Module):
     def __init__(self):
         super().__init__()
-        n_channels = [256, 128, 64, 32, 16]
-        self.backbone = nn.Sequential(
-            nn.ModuleList([UpBlock(c) for c in n_channels]),
-            nn.Conv2d(in_channels=n_channels[-1], out_channels=1, kernel_size=1, stride=1),
-            nn.Sigmoid()
-        )
+        n_channels = [256, 128, 64, 32] # n channels in input to each block. --- To be passed as an argument when instantiating? Based on the output of the encoder?
+        self.backbone = nn.ModuleList([UpBlock(c) for c in n_channels])
+        self.final_conv = nn.Conv2d(in_channels=n_channels[-1]//2, out_channels=1, kernel_size=1, stride=1) # last UpBlock returns "n_channels[-1]//2" channels
+        self.sigmoid = nn.Sigmoid()
         
     def forward(self, x):     
-        x = self.backbone(x)
+        for block in self.backbone: # ModuleList is just a list so a forward for each block must be defined
+            x = block(x)
+        x = self.final_conv(x)
+        x = self.sigmoid(x)
         return x
-    
+
         
        
 
