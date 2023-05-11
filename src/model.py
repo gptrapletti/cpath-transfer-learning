@@ -121,8 +121,25 @@ class SegResNet(pl.LightningModule):
         
     def forward(self, x):
         y = self.encoder(x)
-        
         y = self.decoder()
+        
+    def find_channel_progression(initial_size, initial_channels):
+        # Find number of blocks needed to reach dimension 256x256.
+        size = initial_size
+        size_progression = []
+        while size <= 256:
+            size_progression.append(size)
+            size = size*2
+        n_blocks = len(size_progression)
+        
+        # Find progression of number of channels.    
+        channels = initial_channels
+        channel_progression = [] # it should contain also the number of channels of the initial feature maps, to be used for the first "in_channels" parameter.
+        for i in range(n_blocks):
+            channel_progression.append(channels)
+            channels = int(channels / 2)
+        
+        return channel_progression
         
 
 
