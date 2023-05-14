@@ -1,37 +1,8 @@
 import torch
-import pytorch_lightning as pl
 import torch.nn as nn
+import torchmetrics
+import pytorch_lightning as pl
 from src.utils import load_pretrained_model
-
-# class UpStep(nn.Module):
-#     def __init__(self, input_shape):
-#         self.input_shape = input_shape
-#         self.stack = nn.Sequential([
-#             # Halves the number of channels of the feature maps while
-#             # keeping weight and width the same
-#             nn.ConvTranspose2d(
-#                 in_channels=self.input_shape, 
-#                 out_channels=self.input_shape/2, 
-#                 kernel_size=2, 
-#                 stride=2, 
-#                 padding=0
-#             ),
-#             #
-#             nn.Conv2d(
-#                 in_channels=output1.shape[0],
-#                 out_channels=int(output1.shape[0]/2),
-#                 kernel_size=3,
-#                 stride=1,
-#                 padding=1
-#             )
-            
-#             # COME PASSARE A QUESTO ULTIMO LAYER IL NUOVO INPUT SHAPE, RISULTANTE DAL PASSAGGIO PRECEDENTE? FARLO NELLA FORWARD? 
-#             # COME INSERIRE IL CONTROLLO DI FERMARSI QUANDO SI E' ARRIVATI A 256? NELLA CLASSE DECODER DIREI.
-            
-#         ])
-        
-#     def forward(self, x):
-#         return self.upconv(x)
 
 class UpBlock(nn.Module):
     '''
@@ -115,6 +86,8 @@ class SegResNet(pl.LightningModule):
         super().__init__()
         self.ckpt_path = ckpt_path
         self.pruning = pruning
+        self.loss_fn = nn.BCELoss()
+        self.metric = torchmetrics.Dice(threshold=0.5, ignore_index=0)
         # Instantiate encoder
         self.encoder = Encoder(ckpt_path=self.ckpt_path, pruning=self.pruning)
         # Find encoder output shape, using a dummy input
@@ -165,6 +138,28 @@ class SegResNet(pl.LightningModule):
             channels = int(channels / 2)
         
         return channel_progression
+    
+    def training_step(self, batch, batch_idx):
+        images, gts = batch
+        preds = self(images)
+        loss = self.loss_fn(preds, gts)
+        self.log('train_loss', loss, prog_bar=True)
+        return loss
+    
+    def validation_step(self, batch, batch_idx):
+        images, gts = batch
+        preds = self(images)
+        loss = self.loss_fn(preds, gts)
+        metric = self.metric(preds, gts) # does 0.5 thresholding
+        self.log('val_loss', loss, prog_bar=True)
+        self.log('val_metric', metric, prog_bar=True)
+        
+    def test_step(self, batch, batch_idx):
+        images, gts = batch
+        preds = self(images)
+        metric = self.metric(preds, gts)
+        self.log('test_metric', metric, prog_bar=True)
+        
         
 
 
