@@ -1,3 +1,4 @@
+import torch
 import pytorch_lightning as pl
 import torch.nn as nn
 from src.utils import load_pretrained_model
@@ -67,15 +68,15 @@ class Encoder(nn.Module):
     
     pruning: how many layers remove from the end of the model.
     """
-    def __init__(self, ckpt_path, pruning, device):
+    def __init__(self, ckpt_path, pruning): # device
         super().__init__()
         self.ckpt_path = ckpt_path
-        self.device = device
+        # self.device = device
         self.pruning = pruning
         self.model = self.prepare_model()
         
     def prepare_model(self):
-        model = load_pretrained_model(path=self.ckpt_path, device=self.device)
+        model = load_pretrained_model(path=self.ckpt_path) # device=self.device
         model = nn.Sequential(*list(model.children())[:-self.pruning])
         return model
     
@@ -86,12 +87,12 @@ class Encoder(nn.Module):
     
 
 class BasicDecoder(nn.Module):
-    def __init__(self):
+    def __init__(self, channel_progression):
         super().__init__()
-        n_channels = [256, 128, 64, 32] # n channels in input to each block. --- To be passed as an argument when instantiating? Based on the output of the encoder?
-        self.backbone = nn.ModuleList([UpBlock(c) for c in n_channels])
-        self.final_conv = nn.Conv2d(in_channels=n_channels[-1]//2, out_channels=1, kernel_size=1, stride=1) # last UpBlock returns "n_channels[-1]//2" channels
-        self.sigmoid = nn.Sigmoid()
+        self.channel_progression = channel_progression
+        self.backbone = nn.ModuleList([UpBlock(c) for c in channel_progression])
+        self.final_conv = nn.Conv2d(in_channels=channel_progression[-1]//2, out_channels=1, kernel_size=1, stride=1) # last UpBlock returns "channel_progression[-1]//2" channels
+        self.sigmoid = nn.Sigmoid() # maybe softmax?
         
     def forward(self, x):     
         for block in self.backbone: # ModuleList is just a list so a forward for each block must be defined
@@ -102,8 +103,7 @@ class BasicDecoder(nn.Module):
 
         
        
-
-class Decoder(nn.Module):
+class ProDecoder(nn.Module):
     def __init__(self):
         super().__init__()
         pass
@@ -111,28 +111,53 @@ class Decoder(nn.Module):
 
 
 class SegResNet(pl.LightningModule):
-    def __init__(self, ckpt_path, pruning=3, device='cuda:0'):
+    def __init__(self, ckpt_path, pruning=3):
         super().__init__()
         self.ckpt_path = ckpt_path
         self.pruning = pruning
-        self.device = device
-        self.encoder = Encoder(ckpt_path=self.ckpt_path, pruning=self.pruning, device=self.device)
-        self.decoder = BasicDecoder()
+        # Instantiate encoder
+        self.encoder = Encoder(ckpt_path=self.ckpt_path, pruning=self.pruning)
+        # Find encoder output shape, using a dummy input
+        self.encoder_output_shape = list(self.encoder(torch.rand([1, 3, 256, 256])).shape)
+        # Find channel progression
+        self.channel_progression = self.find_channel_progression(
+            initial_size=self.encoder_output_shape[2],
+            initial_channels=self.encoder_output_shape[1]
+        )
+        # Instantiate decoder
+        self.decoder = BasicDecoder(self.channel_progression)
         
     def forward(self, x):
-        y = self.encoder(x)
-        y = self.decoder()
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
+
         
-    def find_channel_progression(initial_size, initial_channels):
+    def find_channel_progression(self, initial_size, initial_channels):
+        '''Find the number of channels in each decoder step. This 
+        number of channels is computed based upon the number of channels
+        of the output of the encoder and upon their dimensions (HxW). Since
+        each decoder step doubles the dimensions, it must be found how many
+        times (that is, how many steps) this has to be done to go from the encoder
+        output to dimensions to the desidered output dimensions (256x256). The
+        channels progression is computed on the basis of this number of steps.
+        For example, if the encoder output has shape [128, 32, 32], n steps
+        are required to reach shape [C, 256, 256] and the number of channels
+        will be halved at each step, being C the final number. 
+        
+        '''
         # Find number of blocks needed to reach dimension 256x256.
         size = initial_size
         size_progression = []
         while size <= 256:
             size_progression.append(size)
             size = size*2
-        n_blocks = len(size_progression)
+        n_blocks = len(size_progression)-1
+        # "-1" because these are the input sizes of the convolutions
+        # and the last conv doubles it again (without "-1" initial size of 256
+        # would out a mask 512x512)
         
-        # Find progression of number of channels.    
+        # Find progression of number of channels for the BasicDecoder.    
         channels = initial_channels
         channel_progression = [] # it should contain also the number of channels of the initial feature maps, to be used for the first "in_channels" parameter.
         for i in range(n_blocks):
@@ -141,6 +166,7 @@ class SegResNet(pl.LightningModule):
         
         return channel_progression
         
+
 
 
 
