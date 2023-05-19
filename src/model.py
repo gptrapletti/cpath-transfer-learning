@@ -82,12 +82,14 @@ class ProDecoder(nn.Module):
 
 
 class SegResNet(pl.LightningModule):
-    def __init__(self, ckpt_path, pruning=3):
+    def __init__(self, ckpt_path, pruning, lr):
         super().__init__()
         self.ckpt_path = ckpt_path
         self.pruning = pruning
         self.loss_fn = nn.BCELoss()
         self.metric = torchmetrics.Dice(threshold=0.5, ignore_index=0)
+        self.lr = lr
+        # self.scheduler_params = scheduler_params   # DELENDUM
         # Instantiate encoder
         self.encoder = Encoder(ckpt_path=self.ckpt_path, pruning=self.pruning)
         # Find encoder output shape, using a dummy input
@@ -141,31 +143,42 @@ class SegResNet(pl.LightningModule):
     
     def training_step(self, batch, batch_idx):
         images, gts = batch
+        gts = gts[:, None, :, :] # add channel dimension
         preds = self(images)
-        loss = self.loss_fn(preds, gts)
+        loss = self.loss_fn(preds.float(), gts.float())
         self.log('train_loss', loss, prog_bar=True)
         return loss
     
     def validation_step(self, batch, batch_idx):
         images, gts = batch
+        gts = gts[:, None, :, :] # add channel dimension
         preds = self(images)
-        loss = self.loss_fn(preds, gts)
+        loss = self.loss_fn(preds.float(), gts.float())
         metric = self.metric(preds, gts) # does 0.5 thresholding
         self.log('val_loss', loss, prog_bar=True)
         self.log('val_metric', metric, prog_bar=True)
         
     def test_step(self, batch, batch_idx):
         images, gts = batch
+        gts = gts[:, None, :, :] # add channel dimension
         preds = self(images)
         metric = self.metric(preds, gts)
         self.log('test_metric', metric, prog_bar=True)
         
+    def configure_optimizers(self):
+        optim = torch.optim.Adam(params=self.parameters(), lr=self.lr)
+        # sched = torch.optim.lr_scheduler.ReduceLROnPlateau(**self.scheduler_params)  # DELENDUM
+        sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optim, 
+            mode='min', 
+            factor=0.1, 
+            patience=10, 
+            threshold=0.01, 
+            threshold_mode='abs'
+        )
+        return {"optimizer": optim, "lr_scheduler": {"scheduler": sched, "monitor": "val_loss"}}
         
-
-
-
-
-
+        
 
         
 # class Decoder(nn.Module):

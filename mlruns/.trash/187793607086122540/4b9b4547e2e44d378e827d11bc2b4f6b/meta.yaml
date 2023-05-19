@@ -1,0 +1,16 @@
+artifact_uri: file:///home/gptrapletti/ds/cpath-transfer-learning/mlruns/187793607086122540/4b9b4547e2e44d378e827d11bc2b4f6b/artifacts
+deleted_time: 1684536778747
+end_time: 1684536388777
+entry_point_name: ''
+experiment_id: '187793607086122540'
+lifecycle_stage: deleted
+run_id: 4b9b4547e2e44d378e827d11bc2b4f6b
+run_name: run_0
+run_uuid: 4b9b4547e2e44d378e827d11bc2b4f6b
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1684535919794
+status: 3
+tags: []
+user_id: gptrapletti
