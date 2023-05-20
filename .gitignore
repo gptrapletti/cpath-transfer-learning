@@ -2,6 +2,7 @@
 data/
 .ipynb_checkpoints/
 __pycache__/
+mlruns/*
 
 # Files
 *.ckpt

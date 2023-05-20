@@ -48,7 +48,7 @@ class CONICDataModule(pl.LightningDataModule):
         return DataLoader(dataset=self.train_ds, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
     
     def val_dataloader(self):
-        return DataLoader(dataset=self.val_ds, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
+        return DataLoader(dataset=self.val_ds, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
     
     def test_dataloader(self):
         pass

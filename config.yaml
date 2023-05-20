@@ -1,21 +1,14 @@
 data_dir: data
 images_path: data/images.npy
 labels_path: data/labels.npy
-
 pretrained_model_path: models/tenpercent_resnet18.ckpt
 
-lr: 0.00001
+biomarker: 2
 
-epochs: 50
+pruning: 4
+batch_size: 16
+lr: 0.0001
+epochs: 100
 
 experiment_name: 'cpath-transfer-learning'
-run_name: 'lr:0.00001'
-
-# scheduler:
-#   class: torch.optim.lr_scheduler.ReduceLROnPlateau
-#   params:
-#     mode: 'min'
-#     factor: 0.1
-#     patience: 10
-#     threshold: 0.01
-#     threshold_mode: 'abs'
+run_name: 'lr:0.0001_batch:16_pruning:4_reinitialized'

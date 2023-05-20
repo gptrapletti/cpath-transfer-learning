@@ -7,11 +7,11 @@ from src.model import SegResNet
 with open("config.yaml", "r") as f:
     cfg = yaml.safe_load(f)
     
-datamodule = CONICDataModule(data_dir=cfg['data_dir'], biomarker=2)
+datamodule = CONICDataModule(data_dir=cfg['data_dir'], biomarker=cfg['biomarker'], batch_size=cfg['batch_size'])
 
 model = SegResNet(
     ckpt_path=cfg['pretrained_model_path'],
-    pruning = 3,
+    pruning = cfg['pruning'],
     lr = cfg['lr']
 )
 

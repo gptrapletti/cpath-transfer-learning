@@ -87,11 +87,15 @@ class SegResNet(pl.LightningModule):
         self.ckpt_path = ckpt_path
         self.pruning = pruning
         self.loss_fn = nn.BCELoss()
+        # self.loss_fn = monai.losses.DiceLoss(sigmoid=False)
         self.metric = torchmetrics.Dice(threshold=0.5, ignore_index=0)
         self.lr = lr
         # self.scheduler_params = scheduler_params   # DELENDUM
         # Instantiate encoder
         self.encoder = Encoder(ckpt_path=self.ckpt_path, pruning=self.pruning)
+        # # Freeze encoder
+        # self.freeze_encoder()
+        # self.reinitialize_parameters()
         # Find encoder output shape, using a dummy input
         self.encoder_output_shape = list(self.encoder(torch.rand([1, 3, 256, 256])).shape)
         # Find channel progression
@@ -145,7 +149,8 @@ class SegResNet(pl.LightningModule):
         images, gts = batch
         gts = gts[:, None, :, :] # add channel dimension
         preds = self(images)
-        loss = self.loss_fn(preds.float(), gts.float())
+        # loss = self.loss_fn(preds, gts) # for the DiceLoss ### !
+        loss = self.loss_fn(preds.float(), gts.float()) # for CE loss
         self.log('train_loss', loss, prog_bar=True)
         return loss
     
@@ -153,7 +158,8 @@ class SegResNet(pl.LightningModule):
         images, gts = batch
         gts = gts[:, None, :, :] # add channel dimension
         preds = self(images)
-        loss = self.loss_fn(preds.float(), gts.float())
+        # loss = self.loss_fn(preds, gts) # for the DiceLoss ### !
+        loss = self.loss_fn(preds.float(), gts.float()) # for CE loss
         metric = self.metric(preds, gts) # does 0.5 thresholding
         self.log('val_loss', loss, prog_bar=True)
         self.log('val_metric', metric, prog_bar=True)
@@ -167,7 +173,6 @@ class SegResNet(pl.LightningModule):
         
     def configure_optimizers(self):
         optim = torch.optim.Adam(params=self.parameters(), lr=self.lr)
-        # sched = torch.optim.lr_scheduler.ReduceLROnPlateau(**self.scheduler_params)  # DELENDUM
         sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optim, 
             mode='min', 
@@ -177,39 +182,15 @@ class SegResNet(pl.LightningModule):
             threshold_mode='abs'
         )
         return {"optimizer": optim, "lr_scheduler": {"scheduler": sched, "monitor": "val_loss"}}
-        
-        
-
-        
-# class Decoder(nn.Module):
-#     def __init__(self, input_shape, hidden_dim):
-#         super(Decoder, self).__init__()
-        
-#         # Define the input shape of the decoder
-#         self.input_shape = input_shape
-        
-#         # Define the hidden dimension of the decoder
-#         self.hidden_dim = hidden_dim
-        
-#         # Define the convolutional layers
-#         self.conv1 = nn.ConvTranspose2d(input_shape[1], hidden_dim, kernel_size=3, stride=2, padding=1, output_padding=1)
-#         self.conv2 = nn.ConvTranspose2d(hidden_dim, hidden_dim//2, kernel_size=3, stride=2, padding=1, output_padding=1)
-#         self.conv3 = nn.ConvTranspose2d(hidden_dim//2, hidden_dim//4, kernel_size=3, stride=2, padding=1, output_padding=1)
-#         self.conv4 = nn.ConvTranspose2d(hidden_dim//4, 1, kernel_size=3, stride=1, padding=1)
-        
-#         # Define the activation functions
-#         self.relu = nn.ReLU()
-#         self.sigmoid = nn.Sigmoid()
     
-#     def forward(self, x):
-#         # Pass the input through the convolutional layers and activation functions
-#         out = self.relu(self.conv1(x))
-#         out = self.relu(self.conv2(out))
-#         out = self.relu(self.conv3(out))
-#         out = self.sigmoid(self.conv4(out))
-        
-#         # Resize the output to match the input size
-#         out = nn.functional.interpolate(out, size=self.input_shape[2:], mode='bilinear', align_corners=False)
-        
-#         # Return the output
-#         return out
+    # def freeze_encoder(self):
+    #     for param in self.encoder.parameters():
+    #         param.requires_grad = False
+    #     print('\nFREEZED!\n')
+    
+    # def reinitialize_parameters(self):
+    #     for layer in self.encoder.children():
+    #         if hasattr(layer, 'reset_parameters'):
+    #             layer.reset_parameters()
+    #     print('\nREINITIALIZED!\n')
+ 

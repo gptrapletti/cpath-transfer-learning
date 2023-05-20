@@ -1,7 +1,0 @@
-artifact_location: file:///home/gptrapletti/ds/cpath-transfer-learning/mlruns/159319031732967610
-creation_time: 1684536652099
-experiment_id: '159319031732967610'
-last_update_time: 1684536775866
-lifecycle_stage: deleted
-name: lr:0.0001
-tags: {}
