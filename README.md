@@ -15,7 +15,7 @@ The model adopts a UNet architecture, wherein the pretrained encoder can be prun
 |-------------------|--------------------|
 | 1                 | [512, 1, 1]        |
 | 2                 | [512, 8, 8]        |
-| 4                 | [256, 16, 16]      |
+| 3                 | [256, 16, 16]      |
 | 4                 | [128, 32, 32]      |
 | 5                 | [64, 64, 64]       |
 
