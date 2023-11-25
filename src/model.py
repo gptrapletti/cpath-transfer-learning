@@ -56,7 +56,6 @@ class Encoder(nn.Module):
         return output
     
     
-
 class BasicDecoder(nn.Module):
     def __init__(self, channel_progression):
         super().__init__()
@@ -71,14 +70,12 @@ class BasicDecoder(nn.Module):
         x = self.final_conv(x)
         x = self.sigmoid(x)
         return x
-
-        
+     
        
 class ProDecoder(nn.Module):
     def __init__(self):
         super().__init__()
         pass
-
 
 
 class SegResNet(pl.LightningModule):
@@ -111,7 +108,6 @@ class SegResNet(pl.LightningModule):
         x = self.decoder(x)
         return x
 
-        
     def find_channel_progression(self, initial_size, initial_channels):
         '''Find the number of channels in each decoder step. This 
         number of channels is computed based upon the number of channels
