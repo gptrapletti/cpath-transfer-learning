@@ -6,5 +6,4 @@ mlruns/*
 
 # Files
 *.ckpt
-*.txt
 *.env

@@ -1,0 +1,29 @@
+CPATH-TRANSFER-LEARNING
+
+Provare una rete che abbiamo receptive field "a misura di cellula"; allenare per due classi (pc e linfociti), bilanciando le classi togliendo una percentuale adeguata di linfociti (agendo sull'instance segmentation). Insomma fare una rete per multiclass segmentation prima semplice e poi provare a complicarla (usare Monai?).
+Altra idea preliminare: fare un'architettura che, mantenendo lo stesso numero di layers, permetta di fare variare il receptive field, per vedere se sulle cellule un receptive field piccolo permetta di ottenere performance migliori (es Dice) rispetto ad un receptive field grande. 
+
+Si e' visto che:
+pruning 4 va meglio di 3, il 2 peggio di tutti.
+freezing encoder peggiora.
+reinizializzare i pesi porta a stesse performance → encoder pretrained semplicemente fa convergere prima ma non ne vale particolarmente la pena.
+
+PROSSIMO STEP: 
+vedere predizioni migliori e quelle peggiori in termini di Dice.
+sistemare bene questione channel dimension nelle gts e gestire bene la questione long/float richiesta dalla loss.
+Aggiungere skip connections.
+
+
+ROADMAP:
+Prune net so that output is (for CONIC data) [512, 7, 7] or [256, 16, 16].
+ or not so much? In the UNet paper the input images are (3, 512, 512) and the lowest feature maps are (1024, 30, 30).
+Use net as encoder, with freezed layers, and build a specular decoder (to be trained from start)
+the decoder should return the semantic segmentation mask (also the instance? Nope.)
+add skip connections!
+Train on CONIC (only one or more biomarkers?) (do hold-out to validate too!!!)
+
+
+ESPERIMENTI:
+Prima solo epitelio, poi solo plasma cellule e poi plasma cellule e un altro biomarker (quindi si passa da binary segmentation a multiclass segmentation).
+Decoder basic vs decoder pro (skip connections, decoder speculare a encoder, che altro?).
+Encoder freezzato vs encoder fine tuned vs encoder allenato da 0 (per vedere quanto migliora il transfer learning).
